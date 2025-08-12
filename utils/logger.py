@@ -10,23 +10,27 @@ def setup_logger():
     # Remove default handler
     logger.remove()
     
-    # Add console handler with color
+    # Add console handler with colors
     logger.add(
         sys.stdout,
-        format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>",
-        level="INFO"
+        format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan> - <level>{message}</level>",
+        level="INFO",
+        colorize=True
     )
     
-    # Add file handler
+    # Add file handler with daily rotation
     log_dir = Path("logs")
     log_dir.mkdir(exist_ok=True)
     
     logger.add(
-        log_dir / "app.log",
-        format="{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | {name}:{function}:{line} - {message}",
+        log_dir / "sharp_agents.log",
+        format="{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | {name} - {message}",
         level="DEBUG",
-        rotation="10 MB",
-        retention="7 days"
+        rotation="1 day",
+        retention="30 days",
+        compression="zip",
+        backtrace=True,
+        diagnose=True
     )
     
     return logger
