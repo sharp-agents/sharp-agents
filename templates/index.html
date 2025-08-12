@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sharp Agents - Market Monitor</title>
+    
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    
+    <!-- Custom CSS -->
+    <style>
+        .market-table {
+            font-size: 0.9rem;
+        }
+        
+        .market-table th {
+            background-color: #f8f9fa;
+            border-top: none;
+            font-weight: 600;
+            color: #495057;
+        }
+        
+        .platform-badge {
+            font-size: 0.75rem;
+            padding: 0.25rem 0.5rem;
+        }
+        
+        .price-cell {
+            font-family: 'Courier New', monospace;
+            font-weight: 600;
+        }
+        
+        .spread-positive {
+            color: #198754;
+        }
+        
+        .spread-negative {
+            color: #dc3545;
+        }
+        
+        .volume-high {
+            color: #198754;
+            font-weight: 600;
+        }
+        
+        .volume-medium {
+            color: #fd7e14;
+            font-weight: 600;
+        }
+        
+        .volume-low {
+            color: #6c757d;
+        }
+        
+        .refresh-button {
+            transition: transform 0.2s;
+        }
+        
+        .refresh-button:hover {
+            transform: scale(1.05);
+        }
+        
+        .refresh-button:active {
+            transform: scale(0.95);
+        }
+        
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+        }
+        
+        .status-online {
+            background-color: #198754;
+        }
+        
+        .status-offline {
+            background-color: #dc3545;
+        }
+        
+        .auto-refresh-indicator {
+            font-size: 0.8rem;
+            color: #6c757d;
+        }
+        
+        .market-title {
+            max-width: 300px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        .team-info {
+            font-size: 0.8rem;
+            color: #6c757d;
+        }
+        
+        .summary-card {
+            border-left: 4px solid #0d6efd;
+        }
+        
+        .loading-spinner {
+            display: none;
+        }
+        
+        .alert-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1050;
+            max-width: 400px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">
+                <i class="bi bi-graph-up"></i>
+                Sharp Agents - Market Monitor
+            </a>
+            <div class="navbar-nav ms-auto">
+                <span class="navbar-text">
+                    <span class="status-indicator status-online"></span>
+                    <span id="connection-status">Online</span>
+                </span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container-fluid mt-4">
+        <!-- Header Section -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h1 class="h3 mb-0">
+                            <i class="bi bi-speedometer2"></i>
+                            Market Dashboard
+                        </h1>
+                        <p class="text-muted mb-0">
+                            Real-time monitoring of prediction markets across platforms
+                        </p>
+                    </div>
+                    <div class="d-flex align-items-center gap-3">
+                        <button id="refresh-btn" class="btn btn-primary refresh-button">
+                            <i class="bi bi-arrow-clockwise"></i>
+                            Refresh Now
+                        </button>
+                        <div class="auto-refresh-indicator">
+                            <i class="bi bi-clock"></i>
+                            Auto-refresh: <span id="countdown">30</span>s
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Summary Cards -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card summary-card h-100">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center">
+                            <div class="flex-shrink-0">
+                                <i class="bi bi-graph-up text-primary fs-1"></i>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <h6 class="card-title text-muted mb-1">Total Markets</h6>
+                                <h3 class="mb-0" id="total-markets">{{ summary.total_markets or 0 }}</h3>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card summary-card h-100">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center">
+                            <div class="flex-shrink-0">
+                                <i class="bi bi-activity text-success fs-1"></i>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <h6 class="card-title text-muted mb-1">Active Markets</h6>
+                                <h3 class="mb-0" id="active-markets">{{ markets|length }}</h3>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card summary-card h-100">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center">
+                            <div class="flex-shrink-0">
+                                <i class="bi bi-globe text-info fs-1"></i>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <h6 class="card-title text-muted mb-1">Platforms</h6>
+                                <h3 class="mb-0" id="total-platforms">{{ summary.total_platforms or 0 }}</h3>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card summary-card h-100">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center">
+                            <div class="flex-shrink-0">
+                                <i class="bi bi-clock text-warning fs-1"></i>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <h6 class="card-title text-muted mb-1">Last Updated</h6>
+                                <h6 class="mb-0" id="last-updated">
+                                    {{ last_refresh.strftime('%H:%M:%S') if last_refresh else 'N/A' }}
+                                </h6>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Markets Table -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">
+                                <i class="bi bi-table"></i>
+                                Active Markets
+                            </h5>
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="badge bg-success" id="markets-count">{{ markets|length }}</span>
+                                <small class="text-muted">markets found</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body p-0">
+                        {% if error %}
+                        <div class="alert alert-danger m-3" role="alert">
+                            <i class="bi bi-exclamation-triangle"></i>
+                            <strong>Error:</strong> {{ error }}
+                        </div>
+                        {% elif markets %}
+                        <div class="table-responsive">
+                            <table class="table table-hover market-table mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Platform</th>
+                                        <th>Market Title</th>
+                                        <th>Yes Bid/Ask</th>
+                                        <th>No Bid/Ask</th>
+                                        <th>Spread</th>
+                                        <th>Volume</th>
+                                        <th>Last Updated</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="markets-tbody">
+                                    {% for market in markets %}
+                                    <tr>
+                                        <td>
+                                            <span class="badge platform-badge bg-primary">
+                                                {{ market.platform|upper }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <div class="market-title" title="{{ market.title }}">
+                                                {{ market.title }}
+                                            </div>
+                                            {% if market.home_team or market.away_team %}
+                                            <div class="team-info">
+                                                {% if market.home_team and market.away_team %}
+                                                {{ market.home_team }} vs {{ market.away_team }}
+                                                {% elif market.home_team %}
+                                                {{ market.home_team }}
+                                                {% elif market.away_team %}
+                                                {{ market.away_team }}
+                                                {% endif %}
+                                            </div>
+                                            {% endif %}
+                                        </td>
+                                        <td class="price-cell">
+                                            {% if market.yes_bid is not none and market.yes_ask is not none %}
+                                            <div>Bid: ${{ "%.3f"|format(market.yes_bid) }}</div>
+                                            <div>Ask: ${{ "%.3f"|format(market.yes_ask) }}</div>
+                                            {% else %}
+                                            <span class="text-muted">N/A</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="price-cell">
+                                            {% if market.no_bid is not none and market.no_ask is not none %}
+                                            <div>Bid: ${{ "%.3f"|format(market.no_bid) }}</div>
+                                            <div>Ask: ${{ "%.3f"|format(market.no_ask) }}</div>
+                                            {% else %}
+                                            <span class="text-muted">N/A</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="price-cell">
+                                            {% if market.spread is not none %}
+                                            <span class="spread-positive">${{ "%.3f"|format(market.spread) }}</span>
+                                            {% else %}
+                                            <span class="text-muted">N/A</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if market.volume is not none %}
+                                                {% if market.volume > 10000 %}
+                                                <span class="volume-high">${{ "{:,.0f}".format(market.volume) }}</span>
+                                                {% elif market.volume > 1000 %}
+                                                <span class="volume-medium">${{ "{:,.0f}".format(market.volume) }}</span>
+                                                {% else %}
+                                                <span class="volume-low">${{ "{:,.0f}".format(market.volume) }}</span>
+                                                {% endif %}
+                                            {% else %}
+                                            <span class="text-muted">N/A</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if market.last_updated %}
+                                            <small class="text-muted">
+                                                {{ market.last_updated.strftime('%H:%M:%S') }}
+                                            </small>
+                                            {% else %}
+                                            <span class="text-muted">N/A</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="text-center py-5">
+                            <i class="bi bi-inbox text-muted" style="font-size: 3rem;"></i>
+                            <h5 class="text-muted mt-3">No Active Markets</h5>
+                            <p class="text-muted">No markets with recent activity found.</p>
+                            <button id="refresh-btn-empty" class="btn btn-primary">
+                                <i class="bi bi-arrow-clockwise"></i>
+                                Refresh Data
+                            </button>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Alert Container -->
+    <div class="alert-container" id="alert-container"></div>
+
+    <!-- Loading Modal -->
+    <div class="modal fade" id="loadingModal" tabindex="-1" data-bs-backdrop="static">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-body text-center p-4">
+                    <div class="spinner-border text-primary mb-3" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <h5>Collecting Market Data</h5>
+                    <p class="text-muted mb-0">Please wait while we fetch the latest market information...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap 5 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Custom JavaScript -->
+    <script>
+        // Global variables
+        let countdown = 30;
+        let countdownInterval;
+        let loadingModal;
+        
+        // Initialize when DOM is loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeApp();
+        });
+        
+        function initializeApp() {
+            // Initialize Bootstrap modal
+            loadingModal = new bootstrap.Modal(document.getElementById('loadingModal'));
+            
+            // Start auto-refresh countdown
+            startAutoRefresh();
+            
+            // Setup event listeners
+            setupEventListeners();
+            
+            // Initial status check
+            checkSystemStatus();
+        }
+        
+        function setupEventListeners() {
+            // Refresh button click
+            const refreshBtn = document.getElementById('refresh-btn');
+            if (refreshBtn) {
+                refreshBtn.addEventListener('click', triggerDataCollection);
+            }
+            
+            // Empty state refresh button
+            const refreshBtnEmpty = document.getElementById('refresh-btn-empty');
+            if (refreshBtnEmpty) {
+                refreshBtnEmpty.addEventListener('click', triggerDataCollection);
+            }
+        }
+        
+        function startAutoRefresh() {
+            countdownInterval = setInterval(() => {
+                countdown--;
+                updateCountdownDisplay();
+                
+                if (countdown <= 0) {
+                    refreshData();
+                    countdown = 30;
+                }
+            }, 1000);
+        }
+        
+        function updateCountdownDisplay() {
+            const countdownElement = document.getElementById('countdown');
+            if (countdownElement) {
+                countdownElement.textContent = countdown;
+            }
+        }
+        
+        function resetCountdown() {
+            countdown = 30;
+            updateCountdownDisplay();
+        }
+        
+        async function triggerDataCollection() {
+            try {
+                // Show loading modal
+                loadingModal.show();
+                
+                // Disable refresh button
+                const refreshBtn = document.getElementById('refresh-btn');
+                if (refreshBtn) {
+                    refreshBtn.disabled = true;
+                    refreshBtn.innerHTML = '<i class="bi bi-arrow-clockwise"></i> Collecting...';
+                }
+                
+                // Make API call
+                const response = await fetch('/api/collect', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showAlert('Data collection completed successfully!', 'success');
+                    // Refresh the page to show new data
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1500);
+                } else {
+                    showAlert(`Collection failed: ${result.error}`, 'danger');
+                }
+                
+            } catch (error) {
+                console.error('Error triggering data collection:', error);
+                showAlert('Failed to trigger data collection. Please try again.', 'danger');
+            } finally {
+                // Hide loading modal
+                loadingModal.hide();
+                
+                // Re-enable refresh button
+                const refreshBtn = document.getElementById('refresh-btn');
+                if (refreshBtn) {
+                    refreshBtn.disabled = false;
+                    refreshBtn.innerHTML = '<i class="bi bi-arrow-clockwise"></i> Refresh Now';
+                }
+            }
+        }
+        
+        async function refreshData() {
+            try {
+                const response = await fetch('/api/markets');
+                const result = await response.json();
+                
+                if (result.success) {
+                    // Update markets count
+                    const marketsCount = document.getElementById('markets-count');
+                    if (marketsCount) {
+                        marketsCount.textContent = result.count;
+                    }
+                    
+                    // Update last updated time
+                    const lastUpdated = document.getElementById('last-updated');
+                    if (lastUpdated) {
+                        const now = new Date();
+                        lastUpdated.textContent = now.toLocaleTimeString();
+                    }
+                    
+                    showAlert('Data refreshed successfully!', 'success');
+                } else {
+                    showAlert(`Failed to refresh data: ${result.error}`, 'warning');
+                }
+                
+            } catch (error) {
+                console.error('Error refreshing data:', error);
+                showAlert('Failed to refresh data. Please try again.', 'warning');
+            }
+            
+            // Reset countdown
+            resetCountdown();
+        }
+        
+        async function checkSystemStatus() {
+            try {
+                const response = await fetch('/api/status');
+                const result = await response.json();
+                
+                if (result.success) {
+                    updateStatusDisplay(result.status);
+                } else {
+                    updateConnectionStatus(false);
+                }
+                
+            } catch (error) {
+                console.error('Error checking system status:', error);
+                updateConnectionStatus(false);
+            }
+        }
+        
+        function updateStatusDisplay(status) {
+            // Update connection status
+            updateConnectionStatus(status.database_connected);
+            
+            // Update summary cards
+            const totalMarkets = document.getElementById('total-markets');
+            if (totalMarkets) {
+                totalMarkets.textContent = status.total_markets;
+            }
+            
+            const activeMarkets = document.getElementById('active-markets');
+            if (activeMarkets) {
+                activeMarkets.textContent = status.active_markets;
+            }
+            
+            const totalPlatforms = document.getElementById('total-platforms');
+            if (totalPlatforms) {
+                totalPlatforms.textContent = status.platforms;
+            }
+        }
+        
+        function updateConnectionStatus(isOnline) {
+            const statusIndicator = document.querySelector('.status-indicator');
+            const statusText = document.getElementById('connection-status');
+            
+            if (isOnline) {
+                statusIndicator.className = 'status-indicator status-online';
+                statusText.textContent = 'Online';
+            } else {
+                statusIndicator.className = 'status-indicator status-offline';
+                statusText.textContent = 'Offline';
+            }
+        }
+        
+        function showAlert(message, type) {
+            const alertContainer = document.getElementById('alert-container');
+            
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+            alertDiv.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            
+            alertContainer.appendChild(alertDiv);
+            
+            // Auto-dismiss after 5 seconds
+            setTimeout(() => {
+                if (alertDiv.parentNode) {
+                    alertDiv.remove();
+                }
+            }, 5000);
+        }
+        
+        // Check system status every 30 seconds
+        setInterval(checkSystemStatus, 30000);
+    </script>
+</body>
+</html>

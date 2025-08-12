@@ -20,12 +20,17 @@ class Config:
         
         # API URLs
         self.POLYMARKET_API_URL = os.getenv("POLYMARKET_API_URL", "https://clob.polymarket.com")
-        self.KALSHI_API_URL = os.getenv("KALSHI_API_URL", "https://api.elections.kalshi.com/v1")
+        self.KALSHI_API_URL = os.getenv("KALSHI_API_URL", "https://api.kalshi.com/trade-api/v2")
         
         # API Keys
         self.OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
         self.POLYMARKET_API_KEY = os.getenv("POLYMARKET_API_KEY")
         self.KALSHI_API_KEY = os.getenv("KALSHI_API_KEY")
+        self.KALSHI_API_SECRET = os.getenv("KALSHI_API_SECRET")
+        
+        # Kalshi Configuration
+        self.KALSHI_REQUEST_TIMEOUT = int(os.getenv("KALSHI_REQUEST_TIMEOUT", "10"))
+        self.SAFE_MODE = os.getenv("SAFE_MODE", "true").lower() == "true"
         
         # Application Settings
         self.LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
@@ -55,6 +60,18 @@ class Config:
     def get_kalshi_api_key(self) -> Optional[str]:
         """Get Kalshi API key."""
         return self.KALSHI_API_KEY
+    
+    def get_kalshi_api_secret(self) -> Optional[str]:
+        """Get Kalshi API secret."""
+        return self.KALSHI_API_SECRET
+    
+    def get_kalshi_request_timeout(self) -> int:
+        """Get Kalshi API request timeout in seconds."""
+        return self.KALSHI_REQUEST_TIMEOUT
+    
+    def is_safe_mode(self) -> bool:
+        """Check if safe mode is enabled (prevents accidental orders)."""
+        return self.SAFE_MODE
     
     def is_production(self) -> bool:
         """Check if running in production mode."""
@@ -91,6 +108,8 @@ class Config:
             "DATABASE_URL": self.DATABASE_URL,
             "POLYMARKET_API_URL": self.POLYMARKET_API_URL,
             "KALSHI_API_URL": self.KALSHI_API_URL,
+            "KALSHI_REQUEST_TIMEOUT": self.KALSHI_REQUEST_TIMEOUT,
+            "SAFE_MODE": self.SAFE_MODE,
             "LOG_LEVEL": self.LOG_LEVEL,
             "ARBITRAGE_MIN_THRESHOLD": self.ARBITRAGE_MIN_THRESHOLD,
             "SCRAPE_INTERVAL_SECONDS": self.SCRAPE_INTERVAL_SECONDS,
@@ -141,3 +160,13 @@ def get_openai_api_key() -> str:
 def is_production() -> bool:
     """Check if running in production mode (backward compatibility)."""
     return get_config().is_production()
+
+
+def get_kalshi_request_timeout() -> int:
+    """Get Kalshi API request timeout in seconds (backward compatibility)."""
+    return get_config().get_kalshi_request_timeout()
+
+
+def is_safe_mode() -> bool:
+    """Check if safe mode is enabled (backward compatibility)."""
+    return get_config().is_safe_mode()
