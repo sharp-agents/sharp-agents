@@ -74,21 +74,14 @@ class KalshiScraper(BaseScraper):
                 self.logger.error("Failed to authenticate with Kalshi API")
                 return []
             
-            # Get all open markets
-            all_markets = self.client.get_markets(status='open')
-            if not all_markets:
-                self.logger.warning("No open markets found")
+            # Get NFL game markets specifically from the KXNFLGAME series
+            nfl_game_markets = self.client.request('GET', '/markets?series_ticker=KXNFLGAME&status=open')
+            if not nfl_game_markets or 'markets' not in nfl_game_markets:
+                self.logger.warning("No NFL game markets found")
                 return []
             
-            self.logger.info(f"Found {len(all_markets)} total open markets")
-            
-            # Filter for NFL markets
-            nfl_markets = []
-            for market in all_markets:
-                if self._is_nfl_market(market):
-                    nfl_markets.append(market)
-            
-            self.logger.info(f"Filtered to {len(nfl_markets)} NFL-related markets")
+            nfl_markets = nfl_game_markets['markets']
+            self.logger.info(f"Found {len(nfl_markets)} NFL game markets from KXNFLGAME series")
             
             # Log some examples of found markets
             if nfl_markets:
@@ -140,8 +133,31 @@ class KalshiScraper(BaseScraper):
             # Try to extract bid/ask prices from orderbook
             try:
                 # Handle different orderbook formats
-                if 'yes' in orderbook and 'no' in orderbook:
-                    # Binary market with yes/no outcomes
+                if 'orderbook' in orderbook and 'yes' in orderbook['orderbook'] and 'no' in orderbook['orderbook']:
+                    # New Kalshi API format with nested orderbook
+                    yes_orders = orderbook['orderbook']['yes']
+                    no_orders = orderbook['orderbook']['no']
+                    
+                    if yes_orders:
+                        # Best bid for yes is highest price (first element after sorting by price desc)
+                        yes_orders_sorted = sorted(yes_orders, key=lambda x: x[0], reverse=True)
+                        price_data['yes_bid'] = float(yes_orders_sorted[0][0]) / 100.0  # Convert cents to dollars
+                        
+                        # Best ask for yes is lowest price (first element after sorting by price asc)
+                        yes_orders_sorted_asc = sorted(yes_orders, key=lambda x: x[0])
+                        price_data['yes_ask'] = float(yes_orders_sorted_asc[0][0]) / 100.0  # Convert cents to dollars
+                    
+                    if no_orders:
+                        # Best bid for no is highest price
+                        no_orders_sorted = sorted(no_orders, key=lambda x: x[0], reverse=True)
+                        price_data['no_bid'] = float(no_orders_sorted[0][0]) / 100.0  # Convert cents to dollars
+                        
+                        # Best ask for no is lowest price
+                        no_orders_sorted_asc = sorted(no_orders, key=lambda x: x[0])
+                        price_data['no_ask'] = float(no_orders_sorted_asc[0][0]) / 100.0  # Convert cents to dollars
+                
+                elif 'yes' in orderbook and 'no' in orderbook:
+                    # Legacy binary market format
                     yes_data = orderbook.get('yes', {})
                     no_data = orderbook.get('no', {})
                     

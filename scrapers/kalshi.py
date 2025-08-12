@@ -100,30 +100,25 @@ class KalshiClient:
                     self.logger.error(f"Elections API authentication failed with status {response.status_code}: {response.text}")
                     return False
             else:
-                # Trading API authentication (original logic)
-                login_data = {
-                    "email": self.api_key,
-                    "password": self.api_secret
+                # Trading API authentication - use API key/secret
+                auth_headers = {
+                    "X-API-Key": self.api_key,
+                    "X-API-Secret": self.api_secret
                 }
                 
-                response = requests.post(
-                    f"{self.base_url}/login",
-                    json=login_data,
+                # Test authentication with a simple endpoint
+                response = requests.get(
+                    f"{self.base_url}/series",
+                    headers=auth_headers,
                     timeout=self.timeout
                 )
             
             if response.status_code == 200:
-                data = response.json()
-                self.auth_token = data.get('token')
-                
-                if self.auth_token:
-                    # Decode token to get expiration
-                    self.token_expires_at = self._decode_token_expiry(self.auth_token)
-                    self.logger.info("Successfully authenticated with Kalshi API")
-                    return True
-                else:
-                    self.logger.error("No token received in login response")
-                    return False
+                # For API key/secret authentication, store as combined token
+                self.auth_token = f"{self.api_key}:{self.api_secret}"
+                self.token_expires_at = datetime.now() + timedelta(hours=24)  # API key auth doesn't expire
+                self.logger.info("Successfully authenticated with Kalshi Trading API")
+                return True
             else:
                 self.logger.error(f"Login failed with status {response.status_code}: {response.text}")
                 return False
