@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sharp Agents Dashboard - Sports Betting & Prediction Markets</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --success-color: #27ae60;
+            --warning-color: #f39c12;
+            --danger-color: #e74c3c;
+            --light-bg: #f8f9fa;
+            --dark-bg: #343a40;
+        }
+        
+        body {
+            background-color: var(--light-bg);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .navbar-brand {
+            font-weight: bold;
+            color: var(--secondary-color) !important;
+        }
+        
+        .card {
+            border: none;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+        
+        .card-header {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            border-radius: 15px 15px 0 0 !important;
+            font-weight: bold;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .status-healthy { background-color: var(--success-color); }
+        .status-unavailable { background-color: var(--danger-color); }
+        .status-warning { background-color: var(--warning-color); }
+        
+        .odds-table {
+            font-size: 0.9rem;
+        }
+        
+        .odds-table th {
+            background-color: var(--light-bg);
+            font-weight: 600;
+        }
+        
+        .opportunity-card {
+            border-left: 4px solid var(--success-color);
+            transition: transform 0.2s;
+        }
+        
+        .opportunity-card:hover {
+            transform: translateY(-2px);
+        }
+        
+        .bookmaker-badge {
+            background-color: var(--secondary-color);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            margin: 2px;
+        }
+        
+        .refresh-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+        
+        .loading {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+        
+        .stats-card {
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .stats-number {
+            font-size: 2rem;
+            font-weight: bold;
+            color: var(--secondary-color);
+        }
+        
+        .stats-label {
+            color: #6c757d;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">
+                <i class="fas fa-chart-line me-2"></i>
+                Sharp Agents Dashboard
+            </a>
+            <div class="navbar-nav ms-auto">
+                <span class="navbar-text">
+                    <span class="status-indicator status-healthy" id="status-indicator"></span>
+                    <span id="status-text">Loading...</span>
+                </span>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid mt-4">
+        <!-- Status Row -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card stats-card">
+                    <div class="stats-number" id="total-games">-</div>
+                    <div class="stats-label">NFL Games</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stats-card">
+                    <div class="stats-number" id="total-opportunities">-</div>
+                    <div class="stats-label">Arbitrage Opportunities</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stats-card">
+                    <div class="stats-number" id="total-markets">-</div>
+                    <div class="stats-label">Kalshi Markets</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stats-card">
+                    <div class="stats-number" id="last-update">-</div>
+                    <div class="stats-label">Last Update</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="row">
+            <!-- Sportsbook Odds -->
+            <div class="col-lg-6">
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fas fa-football-ball me-2"></i>
+                        Sportsbook Odds Comparison
+                    </div>
+                    <div class="card-body">
+                        <div id="sportsbook-loading" class="text-center">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                        </div>
+                        <div id="sportsbook-content" style="display: none;">
+                            <div id="sportsbook-games"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Arbitrage Opportunities -->
+            <div class="col-lg-6">
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fas fa-chart-pie me-2"></i>
+                        Arbitrage Opportunities
+                    </div>
+                    <div class="card-body">
+                        <div id="arbitrage-loading" class="text-center">
+                            <div class="spinner-border text-success" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                        </div>
+                        <div id="arbitrage-content" style="display: none;">
+                            <div id="arbitrage-opportunities"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Kalshi Markets Row -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fas fa-exchange-alt me-2"></i>
+                        Kalshi Prediction Markets
+                    </div>
+                    <div class="card-body">
+                        <div id="kalshi-loading" class="text-center">
+                            <div class="spinner-border text-warning" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                        </div>
+                        <div id="kalshi-content" style="display: none;">
+                            <div id="kalshi-markets"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Refresh Button -->
+    <button class="btn btn-primary refresh-btn" onclick="refreshData()">
+        <i class="fas fa-sync-alt"></i>
+        Refresh Data
+    </button>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        // Global variables
+        let lastUpdate = new Date();
+        
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            loadDashboard();
+            setInterval(loadDashboard, 300000); // Refresh every 5 minutes
+        });
+        
+        async function loadDashboard() {
+            try {
+                await Promise.all([
+                    loadSportsbookOdds(),
+                    loadArbitrageOpportunities(),
+                    loadKalshiMarkets(),
+                    loadSystemStatus()
+                ]);
+                
+                updateLastUpdate();
+            } catch (error) {
+                console.error('Error loading dashboard:', error);
+            }
+        }
+        
+        async function loadSportsbookOdds() {
+            try {
+                const response = await fetch('/api/sportsbook/odds');
+                const data = await response.json();
+                
+                if (data.success) {
+                    displaySportsbookOdds(data.data);
+                    document.getElementById('total-games').textContent = data.total_games;
+                    hideLoading('sportsbook');
+                } else {
+                    throw new Error(data.error);
+                }
+            } catch (error) {
+                console.error('Error loading sportsbook odds:', error);
+                hideLoading('sportsbook');
+                document.getElementById('sportsbook-content').innerHTML = 
+                    '<div class="alert alert-danger">Failed to load sportsbook odds</div>';
+            }
+        }
+        
+        async function loadArbitrageOpportunities() {
+            try {
+                const response = await fetch('/api/sportsbook/arbitrage');
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayArbitrageOpportunities(data.data);
+                    document.getElementById('total-opportunities').textContent = data.total_opportunities;
+                    hideLoading('arbitrage');
+                } else {
+                    throw new Error(data.error);
+                }
+            } catch (error) {
+                console.error('Error loading arbitrage opportunities:', error);
+                hideLoading('arbitrage');
+                document.getElementById('arbitrage-content').innerHTML = 
+                    '<div class="alert alert-danger">Failed to load arbitrage opportunities</div>';
+            }
+        }
+        
+        async function loadKalshiMarkets() {
+            try {
+                const response = await fetch('/api/kalshi/markets');
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayKalshiMarkets(data.data);
+                    document.getElementById('total-markets').textContent = data.total_markets;
+                    hideLoading('kalshi');
+                } else {
+                    throw new Error(data.error);
+                }
+            } catch (error) {
+                console.error('Error loading Kalshi markets:', error);
+                hideLoading('kalshi');
+                document.getElementById('kalshi-content').innerHTML = 
+                    '<div class="alert alert-danger">Failed to load Kalshi markets</div>';
+            }
+        }
+        
+        async function loadSystemStatus() {
+            try {
+                const response = await fetch('/api/status');
+                const status = await response.json();
+                
+                updateStatusIndicator(status);
+            } catch (error) {
+                console.error('Error loading system status:', error);
+            }
+        }
+        
+        function displaySportsbookOdds(games) {
+            const container = document.getElementById('sportsbook-games');
+            let html = '';
+            
+            games.forEach(game => {
+                html += `
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <h6 class="card-title">${game.title}</h6>
+                            <p class="text-muted small">${formatDateTime(game.commence_time)}</p>
+                            <div class="table-responsive">
+                                <table class="table table-sm odds-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Bookmaker</th>
+                                            <th>${game.away_team}</th>
+                                            <th>${game.home_team}</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${game.bookmakers.map(bm => `
+                                            <tr>
+                                                <td><span class="bookmaker-badge">${bm.name}</span></td>
+                                                <td>${formatOdds(bm.odds[game.away_team])}</td>
+                                                <td>${formatOdds(bm.odds[game.home_team])}</td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        }
+        
+        function displayArbitrageOpportunities(opportunities) {
+            const container = document.getElementById('arbitrage-opportunities');
+            
+            if (opportunities.length === 0) {
+                container.innerHTML = '<div class="alert alert-info">No arbitrage opportunities found</div>';
+                return;
+            }
+            
+            let html = '';
+            opportunities.forEach(opp => {
+                const typeColor = opp.type === 'true_arbitrage' ? 'success' : 'warning';
+                const typeIcon = opp.type === 'true_arbitrage' ? 'fa-check-circle' : 'fa-exchange-alt';
+                
+                html += `
+                    <div class="card opportunity-card mb-3">
+                        <div class="card-body">
+                            <h6 class="card-title">
+                                <i class="fas ${typeIcon} text-${typeColor} me-2"></i>
+                                ${opp.title}
+                            </h6>
+                            <p class="text-muted small">${formatDateTime(opp.commence_time)}</p>
+                            <div class="row">
+                                <div class="col-6">
+                                    <strong>Type:</strong> ${opp.type.replace('_', ' ').toUpperCase()}
+                                </div>
+                                <div class="col-6">
+                                    <strong>Teams:</strong> ${opp.away_team} vs ${opp.home_team}
+                                </div>
+                            </div>
+                            ${opp.recommended_bets ? `
+                                <div class="mt-2 p-2 bg-light rounded">
+                                    <small>
+                                        <strong>ROI:</strong> ${opp.recommended_bets.roi_percentage?.toFixed(2) || 'N/A'}%<br>
+                                        <strong>Expected Profit:</strong> $${opp.recommended_bets.total_expected_profit?.toFixed(2) || opp.recommended_bets.guaranteed_profit?.toFixed(2) || 'N/A'}
+                                    </small>
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        }
+        
+        function displayKalshiMarkets(markets) {
+            const container = document.getElementById('kalshi-markets');
+            
+            if (markets.length === 0) {
+                container.innerHTML = '<div class="alert alert-info">No Kalshi markets found</div>';
+                return;
+            }
+            
+            let html = `
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Market</th>
+                                <th>Ticker</th>
+                                <th>Yes Bid/Ask</th>
+                                <th>No Bid/Ask</th>
+                                <th>Volume</th>
+                                <th>Open Interest</th>
+                                <th>Last Price</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+            
+            markets.forEach(market => {
+                html += `
+                    <tr>
+                        <td>
+                            <strong>${market.title}</strong><br>
+                            <small class="text-muted">${market.home_team || ''} ${market.away_team ? 'vs ' + market.away_team : ''}</small>
+                        </td>
+                        <td><code>${market.ticker}</code></td>
+                        <td>
+                            <span class="text-success">$${market.yes_bid?.toFixed(2) || 'N/A'}</span> / 
+                            <span class="text-danger">$${market.yes_ask?.toFixed(2) || 'N/A'}</span>
+                        </td>
+                        <td>
+                            <span class="text-success">$${market.no_bid?.toFixed(2) || 'N/A'}</span> / 
+                            <span class="text-danger">$${market.no_ask?.toFixed(2) || 'N/A'}</span>
+                        </td>
+                        <td>${market.volume?.toLocaleString() || 'N/A'}</td>
+                        <td>${market.open_interest?.toLocaleString() || 'N/A'}</td>
+                        <td><strong>$${market.last_price?.toFixed(2) || 'N/A'}</strong></td>
+                    </tr>
+                `;
+            });
+            
+            html += '</tbody></table></div>';
+            container.innerHTML = html;
+        }
+        
+        function updateStatusIndicator(status) {
+            const indicator = document.getElementById('status-indicator');
+            const text = document.getElementById('status-text');
+            
+            if (status.theodds_api.status === 'healthy' && status.kalshi.status === 'healthy') {
+                indicator.className = 'status-indicator status-healthy';
+                text.textContent = 'All Systems Healthy';
+            } else if (status.theodds_api.status === 'healthy' || status.kalshi.status === 'healthy') {
+                indicator.className = 'status-indicator status-warning';
+                text.textContent = 'Partial System Available';
+            } else {
+                indicator.className = 'status-indicator status-unavailable';
+                text.textContent = 'Systems Unavailable';
+            }
+        }
+        
+        function hideLoading(section) {
+            document.getElementById(`${section}-loading`).style.display = 'none';
+            document.getElementById(`${section}-content`).style.display = 'block';
+        }
+        
+        function updateLastUpdate() {
+            lastUpdate = new Date();
+            document.getElementById('last-update').textContent = lastUpdate.toLocaleTimeString();
+        }
+        
+        async function refreshData() {
+            try {
+                const refreshBtn = document.querySelector('.refresh-btn');
+                refreshBtn.disabled = true;
+                refreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Refreshing...';
+                
+                const response = await fetch('/api/refresh');
+                const data = await response.json();
+                
+                if (data.success) {
+                    await loadDashboard();
+                    showToast('Data refreshed successfully!', 'success');
+                } else {
+                    throw new Error(data.error);
+                }
+            } catch (error) {
+                console.error('Error refreshing data:', error);
+                showToast('Failed to refresh data', 'error');
+            } finally {
+                const refreshBtn = document.querySelector('.refresh-btn');
+                refreshBtn.disabled = false;
+                refreshBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Refresh Data';
+            }
+        }
+        
+        function showToast(message, type) {
+            // Simple toast implementation
+            const toast = document.createElement('div');
+            toast.className = `alert alert-${type === 'success' ? 'success' : 'danger'} position-fixed`;
+            toast.style.cssText = 'top: 20px; right: 20px; z-index: 1001; min-width: 300px;';
+            toast.innerHTML = message;
+            
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.remove();
+            }, 3000);
+        }
+        
+        function formatOdds(odds) {
+            if (odds === undefined || odds === null) return 'N/A';
+            return odds > 0 ? `+${odds}` : odds.toString();
+        }
+        
+        function formatDateTime(dateString) {
+            if (!dateString) return 'N/A';
+            const date = new Date(dateString);
+            return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+        }
+    </script>
+</body>
+</html>

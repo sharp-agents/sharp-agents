@@ -4,11 +4,12 @@ A prediction market analysis and arbitrage detection system that scrapes data fr
 
 ## Features
 
-- **Data Scraping**: Collects data from Polymarket, Kalshi, and other prediction markets
-- **Arbitrage Detection**: Identifies price differences across platforms
+- **Data Scraping**: Collects data from Polymarket, Kalshi, The Odds API, and other prediction markets
+- **Arbitrage Detection**: Identifies price differences across platforms and sportsbooks
 - **AI Analysis**: Uses OpenAI to analyze market sentiment and predict outcomes
 - **REST API**: Flask-based API for data access and analysis
 - **Database**: SQLAlchemy models for storing market data and opportunities
+- **Sports Betting**: Integrates with The Odds API for sportsbook odds comparison
 
 ## Project Structure
 
@@ -17,7 +18,8 @@ scrapers/          # Data collection modules
 ├── __init__.py
 ├── base.py        # Base scraper class
 ├── polymarket.py  # Polymarket scraper
-└── kalshi.py      # Kalshi scraper
+├── kalshi.py      # Kalshi scraper
+└── theodds.py     # The Odds API scraper
 
 database/          # Data persistence
 ├── __init__.py
@@ -60,8 +62,11 @@ utils/             # Utilities
 
 4. **Configure environment**:
    ```bash
-   cp .env.example .env
-   # Edit .env with your API keys
+   # Set environment variables or create .env file
+   export THEODDS_API_KEY='your_api_key_here'
+   export OPENAI_API_KEY='your_openai_api_key_here'
+   # Or run the setup script:
+   python setup_theodds.py
    ```
 
 5. **Run the application**:
@@ -71,12 +76,31 @@ utils/             # Utilities
 
 ## Configuration
 
-Copy `.env.example` to `.env` and configure:
+Set the following environment variables:
 
+- `THEODDS_API_KEY`: Your The Odds API key for sportsbook data
 - `OPENAI_API_KEY`: Your OpenAI API key for AI analysis
 - `DATABASE_URL`: Database connection string
 - `POLYMARKET_API_KEY`: Polymarket API key (if available)
 - `KALSHI_API_KEY`: Kalshi API key (if available)
+
+### The Odds API Setup
+
+The Odds API provides access to sportsbook odds from major bookmakers including:
+- DraftKings
+- FanDuel  
+- BetMGM
+- Caesars
+- And many more
+
+**Free Tier**: 500 requests/month
+**Paid Plans**: Available for higher request limits
+
+To get started:
+1. Visit [The Odds API](https://the-odds-api.com/liveapi/guides/v4/#overview)
+2. Sign up for a free API key
+3. Run `python setup_theodds.py` to configure
+4. Test with `python test_theodds_api.py`
 
 ## API Endpoints
 
@@ -94,6 +118,21 @@ The project uses:
 - **Loguru** for structured logging
 - **OpenAI** for AI-powered analysis
 - **APScheduler** for scheduled tasks
+- **The Odds API** for sportsbook data
+
+## Testing
+
+Test individual components:
+```bash
+# Test The Odds API
+python test_theodds_api.py
+
+# Test database
+python test_database.py
+
+# Test Kalshi API
+python test_kalshi_api.py
+```
 
 ## License
 

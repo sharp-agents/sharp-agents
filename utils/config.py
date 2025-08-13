@@ -21,12 +21,14 @@ class Config:
         # API URLs
         self.POLYMARKET_API_URL = os.getenv("POLYMARKET_API_URL", "https://clob.polymarket.com")
         self.KALSHI_API_URL = os.getenv("KALSHI_API_URL", "https://api.kalshi.com/trade-api/v2")
+        self.THEODDS_API_URL = os.getenv("THEODDS_API_URL", "https://api.the-odds-api.com")
         
         # API Keys
         self.OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
         self.POLYMARKET_API_KEY = os.getenv("POLYMARKET_API_KEY")
         self.KALSHI_API_KEY = os.getenv("KALSHI_API_KEY")
         self.KALSHI_API_SECRET = os.getenv("KALSHI_API_SECRET")
+        self.THEODDS_API_KEY = os.getenv("THEODDS_API_KEY")
         
         # Kalshi Configuration
         self.KALSHI_REQUEST_TIMEOUT = int(os.getenv("KALSHI_REQUEST_TIMEOUT", "10"))
@@ -64,6 +66,10 @@ class Config:
     def get_kalshi_api_secret(self) -> Optional[str]:
         """Get Kalshi API secret."""
         return self.KALSHI_API_SECRET
+    
+    def get_theodds_api_key(self) -> Optional[str]:
+        """Get The Odds API key."""
+        return self.THEODDS_API_KEY
     
     def get_kalshi_request_timeout(self) -> int:
         """Get Kalshi API request timeout in seconds."""
@@ -170,3 +176,8 @@ def get_kalshi_request_timeout() -> int:
 def is_safe_mode() -> bool:
     """Check if safe mode is enabled (backward compatibility)."""
     return get_config().is_safe_mode()
+
+
+def get_theodds_api_key() -> str:
+    """Get The Odds API key (backward compatibility)."""
+    return get_config().get_theodds_api_key()
